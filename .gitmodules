@@ -1,0 +1,6 @@
+[submodule "src/ros2-urdf-tutorial"]
+	path = src/ros2-urdf-tutorial
+	url = git@github.com:MrBoriska/ros2-urdf-tutorial.git
+[submodule "src/ros_tutorials"]
+	path = src/ros_tutorials
+	url = git@github.com:MrBoriska/ros_tutorials.git
