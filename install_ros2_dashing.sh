@@ -13,7 +13,7 @@ read
 
 echo "[Set the target ROS version and name of colcon workspace]"
 name_ros_version=${name_ros_version:="dashing"}
-name_colcon_workspace=${name_colcon_workspace:="colcon_ws"}
+name_colcon_workspace=${name_colcon_workspace:="ros2_seminars_ws"}
 
 echo "[Setup Locale]"
 sudo locale-gen en_US en_US.UTF-8
@@ -27,6 +27,17 @@ sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/ke
 
 echo "[Install ROS 2 packages]"
 sudo apt update && sudo apt install -y ros-$name_ros_version-desktop
+sudo apt remove gazebo11 libgazebo11-dev
+sudo apt install gazebo9 libgazebo9-dev
+sudo apt install ros-$name_ros_version-gazebo-ros-pkgs
+sudo apt install ros-$name_ros_version-rqt-robot-steering 
+sudo apt install ros-$name_ros_version-cartographer
+sudo apt install ros-$name_ros_version-cartographer-ros
+sudo apt install ros-$name_ros_version-navigation2
+sudo apt install ros-$name_ros_version-nav2-bringup
+sudo apt install ros-$name_ros_version-dynamixel-sdk
+sudo apt install ros-$name_ros_version-turtlebot3-msgs
+sudo apt install ros-$name_ros_version-turtlebot3
 
 echo "[Environment setup]"
 source /opt/ros/$name_ros_version/setup.sh
