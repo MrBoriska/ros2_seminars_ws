@@ -5,7 +5,7 @@
 echo ""
 echo "[Note] OS version  >>> Ubuntu 18.04 (Bionic Beaver) or Linux Mint 19.x"
 echo "[Note] Target ROS version >>> ROS 2 Dashing Diademata"
-echo "[Note] Colcon workspace   >>> $HOME/colcon_ws"
+echo "[Note] Colcon workspace   >>> $HOME/ros2_seminars_ws"
 echo ""
 echo "PRESS [ENTER] TO CONTINUE THE INSTALLATION"
 echo "IF YOU WANT TO CANCEL, PRESS [CTRL] + [C]"
@@ -30,6 +30,8 @@ sudo apt update && sudo apt install -y ros-$name_ros_version-desktop
 sudo apt remove -y gazebo11 libgazebo11-dev
 sudo apt install -y gazebo9 libgazebo9-dev
 sudo apt install -y ros-$name_ros_version-gazebo-ros-pkgs \
+                    ros-$name_ros_version-joint-state-publisher \
+                    ros-$name_ros_version-joint-state-publisher \
                     ros-$name_ros_version-rqt-robot-steering \
                     ros-$name_ros_version-cartographer \
                     ros-$name_ros_version-cartographer-ros \
@@ -38,10 +40,14 @@ sudo apt install -y ros-$name_ros_version-gazebo-ros-pkgs \
                     ros-$name_ros_version-dynamixel-sdk \
                     ros-$name_ros_version-turtlebot3-msgs \
                     ros-$name_ros_version-turtlebot3
+                    
 
 echo "[Environment setup]"
 source /opt/ros/$name_ros_version/setup.sh
-sudo apt install -y python3-argcomplete python3-colcon-common-extensions python3-vcstool git
+sudo apt install -y python3-argcomplete python3-colcon-common-extensions python3-vcstool python-rosdep2 git
+
+sudo rosdep init
+rosdep update
 
 echo "[Make the colcon workspace and test colcon build]"
 #mkdir -p $HOME/$name_colcon_workspace/src
@@ -61,7 +67,7 @@ sh -c "echo \"alias cb='cd ~/$name_colcon_workspace && colcon build --symlink-in
 sh -c "echo \"source /opt/ros/$name_ros_version/setup.bash\" >> ~/.bashrc"
 sh -c "echo \"source ~/$name_colcon_workspace/install/local_setup.bash\" >> ~/.bashrc"
 
-exec bash
+source $HOME/.bashrc
 
 echo "[Complete!!!]"
 exit 0
