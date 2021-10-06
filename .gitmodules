@@ -1,9 +1,9 @@
 [submodule "src/ros2-urdf-tutorial"]
 	path = src/ros2-urdf-tutorial
-	url = git@github.com:MrBoriska/ros2-urdf-tutorial.git
+	url = ./ros2-urdf-tutorial.git
 [submodule "src/ros_tutorials"]
 	path = src/ros_tutorials
-	url = git@github.com:MrBoriska/ros_tutorials.git
+	url = ./ros_tutorials.git
 [submodule "src/turtlebot3_sumulations"]
     path = src/turtlebot3_sumulations
-	url = https://github.com/MrBoriska/turtlebot3_simulations.git
+	url = ./turtlebot3_simulations.git
