@@ -27,24 +27,24 @@ sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/ke
 
 echo "[Install ROS 2 packages]"
 sudo apt update && sudo apt install -y ros-$name_ros_version-desktop
-sudo apt remove gazebo11 libgazebo11-dev
-sudo apt install gazebo9 libgazebo9-dev
-sudo apt install ros-$name_ros_version-gazebo-ros-pkgs
-sudo apt install ros-$name_ros_version-rqt-robot-steering 
-sudo apt install ros-$name_ros_version-cartographer
-sudo apt install ros-$name_ros_version-cartographer-ros
-sudo apt install ros-$name_ros_version-navigation2
-sudo apt install ros-$name_ros_version-nav2-bringup
-sudo apt install ros-$name_ros_version-dynamixel-sdk
-sudo apt install ros-$name_ros_version-turtlebot3-msgs
-sudo apt install ros-$name_ros_version-turtlebot3
+sudo apt remove -y gazebo11 libgazebo11-dev
+sudo apt install -y gazebo9 libgazebo9-dev
+sudo apt install -y ros-$name_ros_version-gazebo-ros-pkgs \
+                    ros-$name_ros_version-rqt-robot-steering \
+                    ros-$name_ros_version-cartographer \
+                    ros-$name_ros_version-cartographer-ros \
+                    ros-$name_ros_version-navigation2 \
+                    ros-$name_ros_version-nav2-bringup \
+                    ros-$name_ros_version-dynamixel-sdk \
+                    ros-$name_ros_version-turtlebot3-msgs \
+                    ros-$name_ros_version-turtlebot3
 
 echo "[Environment setup]"
 source /opt/ros/$name_ros_version/setup.sh
 sudo apt install -y python3-argcomplete python3-colcon-common-extensions python3-vcstool git
 
 echo "[Make the colcon workspace and test colcon build]"
-mkdir -p $HOME/$name_colcon_workspace/src
+#mkdir -p $HOME/$name_colcon_workspace/src
 cd $HOME/$name_colcon_workspace
 colcon build --symlink-install
 
