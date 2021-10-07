@@ -113,13 +113,22 @@
     <!-- Connect the wheels to the base_link at the appropriate location, and 
          define a continuous joint to allow the wheels to freely rotate about
          an axis -->
-    <joint name="${prefix}_joint" type="revolute">
+    <joint name="${prefix}_joint" type="continuous">
       <parent link="base_link"/>
       <child link="${prefix}_link"/>
-      <origin xyz="${x_reflect*wheel_xoff} ${y_reflect*(base_width/2+wheel_ygap)} ${-wheel_zoff}" rpy="0 0 0"/>
-      <limit upper="3.1415" lower="-3.1415" effort="300" velocity="50.0"/>
       <axis xyz="0 1 0"/>
+      <origin xyz="${x_reflect*wheel_xoff} ${y_reflect*(base_width/2+wheel_ygap)} ${-wheel_zoff}" rpy="0 0 0"/>
     </joint>
+
+    <!--transmission name="${prefix}_trans" type="SimpleTransmission">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}_joint">
+        <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}_motor">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission-->
   </xacro:macro>
 
   <!-- Instantiate two wheels using the macro we just made through the 
@@ -208,7 +217,7 @@
       <wheel_diameter>${wheel_radius*2}</wheel_diameter>
 
       <!-- limits -->
-      <max_wheel_torque>22.9</max_wheel_torque>
+      <max_wheel_torque>20.0</max_wheel_torque>
       <max_wheel_acceleration>1.0</max_wheel_acceleration>
 
       <!-- output -->
