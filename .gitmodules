@@ -4,6 +4,6 @@
 [submodule "src/ros_tutorials"]
 	path = src/ros_tutorials
 	url = ../ros_tutorials.git
-[submodule "src/turtlebot3_sumulations"]
-    path = src/turtlebot3_sumulations
+[submodule "src/turtlebot3_simulations"]
+    path = src/turtlebot3_simulations
 	url = ../turtlebot3_simulations.git
