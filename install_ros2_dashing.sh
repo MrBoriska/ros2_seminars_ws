@@ -14,6 +14,7 @@ read
 echo "[Set the target ROS version and name of colcon workspace]"
 name_ros_version=${name_ros_version:="dashing"}
 name_colcon_workspace=${name_colcon_workspace:="ros2_seminars_ws"}
+ros_domain_id=1
 
 echo "[Setup Locale]"
 sudo locale-gen en_US en_US.UTF-8
@@ -72,6 +73,7 @@ if [ -z "$1" ]; then
 
     sh -c "echo \"source /opt/ros/$name_ros_version/setup.bash\" >> ~/.bashrc"
     sh -c "echo \"source ~/$name_colcon_workspace/install/local_setup.bash\" >> ~/.bashrc"
+    sh -c "echo \"export ROS_DOMAIN_ID=$ros_domain_id\" >> ~/.bashrc"
 fi
 
 source $HOME/.bashrc
