@@ -25,6 +25,7 @@ sudo apt install -y ros-$name_ros_version-gazebo-ros-pkgs \
                     ros-$name_ros_version-dynamixel-sdk \
                     ros-$name_ros_version-turtlebot3-msgs \
                     ros-$name_ros_version-turtlebot3 \
+                    ros-$name_ros_version-turtlebot3-simulations \
                     ros-$name_ros_version-ament-cmake*
                     
 
