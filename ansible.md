@@ -1,7 +1,8 @@
 
-Deploy and update with ansible
+# Deploy and update with ansible
 
 Inventory (/etc/ansible/hosts)
+
 ```ini
 [students]
 host0.example.org
