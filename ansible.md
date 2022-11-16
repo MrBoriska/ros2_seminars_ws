@@ -34,5 +34,11 @@ with sudo use this example
 ansible -i students_admin -b --ask-become-pass -m shell -a './home/student/ros2_seminars_ws/install_ros2_humble_deps.sh' students
 ```
 
-
+colcon build
+```bash
+ansible -i students_user -m shell -a "bash -ci 'cd ~/ros2_seminars_ws/ && colcon build --symlink-install'" students
+```
+ run browser with command
+```bash
 ansible -i students_hosts -m shell -a 'DISPLAY=:0 firefox --url https://github.com/MrBoriska/ros2_seminars_ws/blob/master/%D0%A1%D0%B5%D0%BC%D0%B8%D0%BD%D0%B0%D1%80%201.md' students
+```
