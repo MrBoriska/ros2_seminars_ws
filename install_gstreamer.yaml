@@ -1,0 +1,33 @@
+- hosts: students
+  become: yes
+  become_method: sudo
+  tasks:
+  - name: Installing packages
+    async: 900
+    poll: 0
+    register: result
+    apt:
+      update-cache: yes
+      pkg:
+      - libgstreamer1.0-dev
+      - libgstreamer-plugins-base1.0-dev
+      - libgstreamer-plugins-bad1.0-dev
+      - gstreamer1.0-plugins-base
+      - gstreamer1.0-plugins-good
+      - gstreamer1.0-plugins-bad
+      - gstreamer1.0-plugins-ugly
+      - gstreamer1.0-libav
+      - gstreamer1.0-tools
+      - gstreamer1.0-x
+      - gstreamer1.0-gl
+      - gstreamer1.0-gtk3
+      - gstreamer1.0-qt5
+      state: latest
+
+  - name: Check sync status
+    async_status:
+      jid: "{{ result.ansible_job_id }}"
+    register: async_poll_results
+    until: async_poll_results.finished
+    retries: 300
+    delay: 5

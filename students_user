@@ -1,0 +1,13 @@
+[students]
+172.23.9.160 ansible_ssh_user=student
+172.23.9.161 ansible_ssh_user=student
+172.23.9.162 ansible_ssh_user=student
+172.23.9.163 ansible_ssh_user=student
+172.23.9.165 ansible_ssh_user=student
+172.23.9.167 ansible_ssh_user=student
+172.23.9.168 ansible_ssh_user=student
+172.23.9.169 ansible_ssh_user=student
+172.23.9.170 ansible_ssh_user=student
+172.23.9.171 ansible_ssh_user=student
+#172.23.9.172 ansible_ssh_user=student
+172.23.9.173 ansible_ssh_user=student

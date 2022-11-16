@@ -1,0 +1,21 @@
+- hosts: students
+  become: yes
+  become_method: sudo
+  tasks:
+  - name: Installing packages
+    async: 900
+    poll: 0
+    register: result
+    apt:
+      update-cache: yes
+      pkg:
+      - vino
+      state: latest
+
+  - name: Check sync status
+    async_status:
+      jid: "{{ result.ansible_job_id }}"
+    register: async_poll_results
+    until: async_poll_results.finished
+    retries: 300
+    delay: 5

@@ -1,0 +1,13 @@
+[students]
+172.23.9.160 ansible_ssh_user=rim-160 ansible_sudo_user=rim-160
+172.23.9.161 ansible_ssh_user=rim-161 ansible_sudo_user=rim-161
+172.23.9.162 ansible_ssh_user=rim-162 ansible_sudo_user=rim-162
+172.23.9.163 ansible_ssh_user=rim163 ansible_sudo_user=rim163
+172.23.9.165 ansible_ssh_user=rim-165 ansible_sudo_user=rim-165
+172.23.9.167 ansible_ssh_user=rim-167 ansible_sudo_user=rim-167
+172.23.9.168 ansible_ssh_user=rim-168 ansible_sudo_user=rim-168
+172.23.9.169 ansible_ssh_user=rim-169 ansible_sudo_user=rim-169
+172.23.9.170 ansible_ssh_user=rim-170 ansible_sudo_user=rim-170
+172.23.9.171 ansible_ssh_user=rim-171 ansible_sudo_user=rim-171
+#172.23.9.172 ansible_ssh_user=rim-172 ansible_sudo_user=rim-172
+172.23.9.173 ansible_ssh_user=rim-173 ansible_sudo_user=rim-173
