@@ -1,3 +1,6 @@
 [submodule "src/ros2-urdf-tutorial"]
 	path = src/ros2-urdf-tutorial
 	url = ../ros2-urdf-tutorial.git
+[submodule "src/youbot_description"]
+	path = src/youbot_description
+	url = ../youbot_description.git
