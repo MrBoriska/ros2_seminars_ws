@@ -24,7 +24,10 @@ sudo apt install -y ros-$name_ros_version-gazebo-ros-pkgs \
                     ros-$name_ros_version-turtlebot3-msgs \
                     ros-$name_ros_version-turtlebot3 \
                     ros-$name_ros_version-turtlebot3-simulations \
-                    ros-$name_ros_version-ament-cmake*
+                    ros-$name_ros_version-ament-cmake \
+                    ros-$name_ros_version-ament-cmake* \
+                    ros-$name_ros_version-robot-state-publisher \
+                    ros-$name_ros_version-robot-state-publisher-gui
                     
 
 echo "[Environment setup]"
