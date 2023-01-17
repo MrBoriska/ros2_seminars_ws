@@ -36,7 +36,7 @@ ansible -i students_admin -b --ask-become-pass -m shell -a './home/student/ros2_
 
 colcon build
 ```bash
-ansible -i students_user -m shell -a "bash -ci 'cd ~/ros2_seminars_ws/ && colcon build --symlink-install'" students
+ansible -i students_user -m shell -a "chdir='~/ros2_seminars_ws' cmd='colcon build'" students
 ```
  run browser with command
 ```bash
