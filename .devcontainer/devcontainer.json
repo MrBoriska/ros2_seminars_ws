@@ -1,0 +1,40 @@
+{
+  "name": "ROS 2 Humble Robotics Seminars",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "runArgs": [
+    "--net=host",
+    "--ipc=host",
+    "--privileged",
+    "-e", "DISPLAY=${localEnv:DISPLAY}",
+    "-e", "QT_X11_NO_MITSHM=1",
+    "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw",
+    "-v", "/dev:/dev"
+  ],
+  "containerEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "ROS_DISTRO": "humble",
+    "ROS_DOMAIN_ID": "0",
+    "TURTLEBOT3_MODEL": "burger"
+  },
+  "workspaceFolder": "/workspaces/ros2_seminars_ws",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/ros2_seminars_ws,type=bind",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-iot.vscode-ros",
+        "ms-python.python",
+        "ms-vscode.cpptools",
+        "redhat.vscode-xml",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "postCreateCommand": "bash -c 'source /opt/ros/humble/setup.bash && colcon build --symlink-install'",
+  "remoteUser": "student"
+}
