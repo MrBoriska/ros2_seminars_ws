@@ -29,15 +29,7 @@ def generate_launch_description():
   else:
       os.environ['GAZEBO_PLUGIN_PATH'] = pkg_install_dir + '/lib'
 
-  try:
-    envs = {}
-    for key in os.environ.__dict__["_data"]:
-      key = key.decode("utf-8")
-      if (key.isupper()):
-        envs[key] = os.environ[key]
-  except Exception as e:
-    print("Error with Envs: " + str(e))
-    return None
+  envs = dict(os.environ)
 
   # Set the path to different files and folders.
   pkg_share = get_package_share_directory('basic_mobile_robot')
@@ -134,10 +126,9 @@ def generate_launch_description():
     package='robot_state_publisher',
     executable='robot_state_publisher',
     parameters=[{
-      'use_sim_time': use_sim_time#, 
-      #'robot_description': robot_description
-    }],
-    arguments=[default_model_path_parsed]
+      'use_sim_time': use_sim_time,
+      'robot_description': robot_description
+    }]
   )
   # Launch RViz
   start_rviz_cmd = Node(
