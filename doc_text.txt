@@ -1,0 +1,581 @@
+--- Paragraphs ---
+Зыбин И.А., STUDENT_ID=325539, вариант 10.
+Параметры цели:
+TARGET_PX = 0.37 м
+TARGET_PY = 0.17 м
+TARGET_PZ = 0.35 м
+Параметры сферы:
+OBS_SPHERE_X = 0.20 + 0.15 м
+OBS_SPHERE_Y = 0.00 + 0.05 м
+OBS_SPHERE_Z = 0.22 + 0.25 м
+OBS_SPHERE_R = 0.08 м
+Координаты сферы изменены, т.к. в данных координатах она располагается в самом манипуляторе. В измененных координатах она располагается так, что ее диаметр находится чуть выше плоскости движения. Движение получилось в плоскости из-за заданных координат.
+Пусть задана трёхмерная сетка
+Функция расстояния волнового алгоритма   определяется рекуррентно:
+
+
+
+где O — множество ячеек, занятых препятствием,
+ — множество 6 соседей ячейки :
+Путь  от старта  к цели  строится по правилу:
+
+
+
+Рисунок 1 – Блок-схема основного узла ROS2
+
+Рисунок 2 – Блок-схема волнового алгоритма
+
+Рисунок 3 – Блок-схема расчета кинематики
+Весь процесс расчета и исполнения занял 27.5 сек, планирование заняло 97 мс, расчет ОЗК и ПЗК для всех точек занял 18.26 сек. Т.к. для расчета коллизий использовалось расстояние от центра звена до края сферы, то края звеньев могли пересекать препятствие. Для исправления необходим расчет коллизий с учетом геометрии звеньев.
+Прямая кинематика определяет положение n контролируемых точек звеньев:
+
+Препятствие задано центром  и радиусом .
+Коллизия i-го звена с препятствием обнаруживается, если:
+
+
+Рисунок 4 – Состояние в начале пути
+
+Рисунок 5 – Состояние в конце пути
+
+Рисунок 6 – Вывод в процессе работы
+
+Рисунок 7 – Состояние при измененной целевой точке
+Волновой алгоритм гарантирует нахождение пути, если он существует. Использование предыдущего решения как начального приближения ускоряет сходимость ОЗК. Использование при решении ОЗК глобального и локального поиска помогает избежать застревания в локальных минимумах. При увеличении разрешения кубически увеличивается число ячеек для расчетов, что повышает требуемое время для расчетов. Для проверки используется всего 6 кандидатов, что дает сильно ломаную траекторию, использование 26 кандидатов (все соседи ячейки в трехмерном пространстве) позволит значительно сгладить траекторию.
+
+Листинг 1. Код реализованного файла
+
+--- Tables ---
+#!/usr/bin/env python3
+
+import os
+import math
+from collections import deque
+
+import numpy as np
+import pybullet as p
+import rclpy
+from rclpy.node import Node
+from ament_index_python.packages import get_package_share_directory
+import xml.etree.ElementTree as ET
+
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from sensor_msgs.msg import JointState
+from visualization_msgs.msg import Marker, MarkerArray
+from geometry_msgs.msg import Point
+from builtin_interfaces.msg import Duration
+from scipy.optimize import differential_evolution, least_squares
+
+# ПЗК и ОЗК
+class YouBotKinematics:
+    """
+    ПЗК/ОЗК 5-DOF манипулятора KUKA YouBot.
+    """
+
+    def __init__(self, urdf_path, gui=False):
+
+        target_joint_names = [
+            'arm_joint_1',
+            'arm_joint_2',
+            'arm_joint_3',
+            'arm_joint_4',
+            'arm_joint_5',
+        ]
+
+        self.joint_names = target_joint_names
+
+        self.ros_joint_names = [
+            'youbot::' + n
+            for n in target_joint_names
+        ]
+
+        self.physics_client = p.connect(p.DIRECT)
+
+        if self.physics_client < 0:
+            raise RuntimeError('Не удалось подключиться к PyBullet')
+
+        if not os.path.exists(urdf_path):
+            raise FileNotFoundError(f'URDF не найден: {urdf_path}')
+
+        self.robot_id = p.loadURDF(
+            urdf_path,
+            basePosition=[0.0, 0.0, 0.0],
+            baseOrientation=[0.0, 0.0, 0.0, 1.0],
+            useFixedBase=True,
+            flags=p.URDF_USE_INERTIA_FROM_FILE
+        )
+
+        self.joint_indices = {}
+
+        for i in range(p.getNumJoints(self.robot_id)):
+
+            info = p.getJointInfo(self.robot_id, i)
+
+            joint_name = info[1].decode("utf-8")
+
+            if joint_name in self.joint_names:
+                self.joint_indices[joint_name] = i
+
+        print(f"[INFO] Kinematics loaded. Joint indices: {self.joint_indices}")
+
+        self.lower_limits = np.zeros(5)
+        self.upper_limits = np.zeros(5)
+
+        for i, joint_name in enumerate(self.joint_names):
+
+            joint_id = self.joint_indices[joint_name]
+
+            info = p.getJointInfo(
+                self.robot_id,
+                joint_id
+            )
+
+            lower = float(info[8])
+            upper = float(info[9])
+
+            if lower > upper:
+                lower = -np.pi
+                upper = np.pi
+
+            self.lower_limits[i] = lower
+            self.upper_limits[i] = upper
+
+        self.ee_link_name = 'arm_link_5'
+
+        self.ee_link_index = None
+
+        for i in range(p.getNumJoints(self.robot_id)):
+
+            info = p.getJointInfo(
+                self.robot_id,
+                i
+            )
+
+            child_link_name = info[12].decode('utf-8')
+
+            if child_link_name == self.ee_link_name:
+                self.ee_link_index = i
+                break
+
+        if self.ee_link_index is None:
+            raise RuntimeError(f"Link '{self.ee_link_name}' не найден")
+
+        self._set_joints(np.zeros(5))
+
+    def _set_joints(self, q):
+
+        """Устанавливает углы 5 суставов руки в PyBullet."""
+
+        q = np.asarray(q, dtype=float)
+
+        for joint_name, q_i in zip(
+            self.joint_names,
+            q
+        ):
+
+            joint_index = self.joint_indices[joint_name]
+
+            p.resetJointState(
+                self.robot_id,
+                joint_index,
+                float(q_i)
+            )
+
+    # ПЗК через PyBullet для конечного звена
+    def get_fk(self, q):
+        q = np.asarray(q, dtype=float)
+
+        self._set_joints(q)
+
+        link_index = self.joint_indices["arm_joint_5"]
+
+        state = p.getLinkState(
+            self.robot_id,
+            link_index,
+            computeForwardKinematics=True
+        )
+
+        return np.asarray(state[4], dtype=float)
+
+    # Определение координат центра звеньев
+    def get_link_points(self, q):
+        q = np.asarray(q, dtype=float)
+        self._set_joints(q)
+
+        points = []
+
+        for joint_name in self.joint_names:
+            joint_index = self.joint_indices[joint_name]
+
+            state = p.getLinkState(
+                self.robot_id,
+                joint_index,
+                computeForwardKinematics=True
+            )
+
+            points.append(np.asarray(state[4], dtype=float))
+
+        return points
+
+    # Проверка коллизий звеньев с препятствиями
+    def check_obstacle_collision(self, q, obs_pos, obs_r):
+        link_points = self.get_link_points(q)
+
+        for i, point in enumerate(link_points):
+            distance = np.linalg.norm(point - obs_pos)
+
+            if distance <= obs_r:
+                return True
+
+        return False
+
+    # ОЗК
+    def get_ik(self, target_pos, q_init=None):
+        target_pos = np.asarray(target_pos, dtype=float)
+
+        if q_init is None:
+            q_init = np.zeros(5)
+        else:
+            q_init = np.asarray(q_init, dtype=float)
+
+        lower = np.asarray(self.lower_limits, dtype=float)
+        upper = np.asarray(self.upper_limits, dtype=float)
+
+        q_init = np.clip(q_init, lower, upper)
+
+        def residual(q):
+            return self.get_fk(q) - target_pos
+
+        def objective(q):
+            r = residual(q)
+            return float(r @ r)
+
+        # Глобальный поиск по допустимым углам.
+        global_result = differential_evolution(
+            objective,
+            bounds=list(zip(lower, upper)),
+            maxiter=500,
+            popsize=20,
+            tol=1e-8,
+            polish=False,
+            seed=42,
+            workers=1
+        )
+
+        candidates = [q_init, global_result.x]
+
+        best_q = None
+        best_error = float("inf")
+
+        # Локальное уточнение после глобального поиска
+        for start in candidates:
+            result = least_squares(
+                residual,
+                x0=np.clip(start, lower, upper),
+                bounds=(lower, upper),
+                method="trf",
+                jac="3-point",
+                x_scale="jac",
+                ftol=1e-12,
+                xtol=1e-12,
+                gtol=1e-12,
+                max_nfev=3000
+            )
+
+            q = result.x
+            error = np.linalg.norm(residual(q))
+
+            if error < best_error:
+                best_q = q.copy()
+                best_error = error
+
+            if error <= 0.02:
+                break
+
+        print(
+            f"[IK] target={np.round(target_pos, 4)}, "
+            f"FK={np.round(self.get_fk(best_q), 4)}, "
+            f"error={best_error:.5f} m"
+        )
+
+        if best_error > 0.05:
+            raise RuntimeError(
+                f"ОЗК не достигла целевой точки: "
+                f"ошибка={best_error:.4f} м"
+            )
+
+        return best_q
+
+    def close(self):
+
+        if p.isConnected(self.physics_client):
+            p.disconnect(self.physics_client)
+
+
+# 3D WAVEFRONT
+def run_wavefront_3d_manual(start_pos, goal_pos, obs_pos, obs_r, bounds, res):
+    # Размеры сетки
+    nx = int((bounds[0][1] - bounds[0][0]) / res) + 1
+    ny = int((bounds[1][1] - bounds[1][0]) / res) + 1
+    nz = int((bounds[2][1] - bounds[2][0]) / res) + 1
+
+    # Значения сетки: -2 = не посещено, -1 = препятствие, >=0 = расстояние до цели
+    grid = np.full((nx, ny, nz), -2, dtype=int)
+
+    # Разметка препятствия (сфера)
+    for x in range(nx):
+        for y in range(ny):
+            for z in range(nz):
+                px = bounds[0][0] + x * res
+                py = bounds[1][0] + y * res
+                pz = bounds[2][0] + z * res
+                if (px - obs_pos[0])**2 + (py - obs_pos[1])**2 + (pz - obs_pos[2])**2 <= obs_r**2:
+                    grid[x, y, z] = -1
+
+    def pos_to_idx(px, py, pz):
+        ix = int(round((px - bounds[0][0]) / res))
+        iy = int(round((py - bounds[1][0]) / res))
+        iz = int(round((pz - bounds[2][0]) / res))
+        return max(0, min(nx-1, ix)), max(0, min(ny-1, iy)), max(0, min(nz-1, iz))
+
+    gx, gy, gz = pos_to_idx(*goal_pos)
+    sx, sy, sz = pos_to_idx(*start_pos)
+
+    if grid[gx, gy, gz] == -1:
+        raise Exception("Целевая точка находится внутри препятствия!")
+
+    # Распространение волны от цели
+    queue = deque([(gx, gy, gz)])
+    grid[gx, gy, gz] = 0
+
+    dirs = [(1,0,0), (-1,0,0), (0,1,0), (0,-1,0), (0,0,1), (0,0,-1)]
+
+    while queue:
+        cx, cy, cz = queue.popleft()
+        current_dist = grid[cx, cy, cz]
+
+        for dx, dy, dz in dirs:
+            nx_idx, ny_idx, nz_idx = cx+dx, cy+dy, cz+dz
+
+            if 0 <= nx_idx < grid.shape[0] and 0 <= ny_idx < grid.shape[1] and 0 <= nz_idx < grid.shape[2]:
+                if grid[nx_idx, ny_idx, nz_idx] == -2:
+                    grid[nx_idx, ny_idx, nz_idx] = current_dist + 1
+                    queue.append((nx_idx, ny_idx, nz_idx))
+
+    # Градиентный спуск от старта к цели
+    path_idx = [(sx, sy, sz)]
+    cx, cy, cz = sx, sy, sz
+
+    while (cx, cy, cz) != (gx, gy, gz):
+        current_distance = grid[cx, cy, cz]
+
+        next_cell = None
+        for dx, dy, dz in dirs:
+            nx_idx = cx + dx
+            ny_idx = cy + dy
+            nz_idx = cz + dz
+
+            if not (0 <= nx_idx < grid.shape[0] and 0 <= ny_idx < grid.shape[1] and 0 <= nz_idx < grid.shape[2]):
+                continue
+
+            if grid[nx_idx, ny_idx, nz_idx] == current_distance - 1:
+                next_cell = (nx_idx, ny_idx, nz_idx)
+                break
+
+        if next_cell is None:
+            raise Exception(
+                "Ошибка восстановления пути, не найден сосед с меньшим значением ячейки.")
+
+        cx, cy, cz = next_cell
+        path_idx.append((cx, cy, cz))
+
+    #Конвертация индексов обратно в координаты
+    path = []
+    for ix, iy, iz in path_idx:
+        path.append((bounds[0][0] + ix*res, bounds[1][0] + iy*res, bounds[2][0] + iz*res))
+
+    return path
+
+
+# ROS 2 NODE
+class YouBotWavefrontNode(Node):
+    def __init__(self):
+        super().__init__('youbot_wavefront_planner')
+
+        self.goal = np.array([
+            self.declare_parameter('x_goal', 0.37).value,
+            self.declare_parameter('y_goal', 0.17).value,
+            self.declare_parameter('z_goal', 0.35).value, # относительно world link, т.к. base_footprint сдвинут на 0.1 по Z
+        ])
+        self.obs_pos = np.array([
+            self.declare_parameter('obs_x', 0.2 + 0.15).value,
+            self.declare_parameter('obs_y', 0.0 + 0.05).value,
+            self.declare_parameter('obs_z', 0.22+0.25).value,
+        ])
+        self.obs_r = self.declare_parameter('obs_r', 0.08).value
+        self.res = self.declare_parameter('resolution', 0.02).value
+
+        # Границы рабочей зоны
+        self.bounds = [
+            (self.declare_parameter('x_min', -0.05).value, self.declare_parameter('x_max', 0.55).value),
+            (self.declare_parameter('y_min', -0.40).value, self.declare_parameter('y_max', 0.40).value),
+            (self.declare_parameter('z_min', 0.05).value,  self.declare_parameter('z_max', 0.65).value),
+        ]
+        self.q_home = np.array(self.declare_parameter('q_home', [0.0]*5).value, dtype=float)
+        self.dt = self.declare_parameter('dt_per_point', 0.5).value
+
+        urdf_path = os.path.join(get_package_share_directory('youbot_description'), 'urdf', 'youbot.urdf')
+
+        self.kin = YouBotKinematics(urdf_path)
+        self.get_logger().info(f"Кинематика загружена. Суставы: {self.kin.joint_names}")
+
+        self.traj_pub = self.create_publisher(JointTrajectory, '/youbot/set_joint_trajectory', 10)
+        self.marker_pub = self.create_publisher(MarkerArray, '/youbot/planner_markers', 10)
+        self.joint_sub = self.create_subscription(JointState, '/youbot/joint_states', self._joint_cb, 10)
+
+        self.current_q = self.q_home.copy()
+        self._planned = False
+        self._joint_path_to_execute = None
+        self._current_point_idx = 0
+        self._execution_timer = self.create_timer(0.5, self._execute_trajectory_step_by_step)
+
+        # Автозапуск через 2 секунды после получения первых данных о суставах
+        self.create_timer(2.0, self._auto_plan)
+
+    def _execute_trajectory_step_by_step(self):
+        if self._joint_path_to_execute is None:
+            return
+
+        if self._current_point_idx >= len(self._joint_path_to_execute):
+            self.get_logger().info("Траектория полностью выполнена!")
+            self._joint_path_to_execute = None
+            return
+
+        q = self._joint_path_to_execute[self._current_point_idx]
+
+        # Сообщение JointTrajectory (одна точка)
+        traj = JointTrajectory()
+        traj.header.frame_id = 'world'
+        traj.header.stamp.sec = 0
+        traj.header.stamp.nanosec = 0
+        traj.joint_names = self.kin.ros_joint_names
+
+        pt = JointTrajectoryPoint()
+        pt.positions = [float(v) for v in q]
+        pt.velocities = [0.0] * 5
+        pt.time_from_start = Duration(sec=0, nanosec=100000000)
+
+        traj.points.append(pt)
+
+        self.traj_pub.publish(traj)
+        self._current_point_idx += 1
+
+    def _joint_cb(self, msg):
+        for i, name in enumerate(self.kin.ros_joint_names):
+            if name in msg.name:
+                idx = msg.name.index(name)
+                if idx < len(msg.position):
+                    self.current_q[i] = msg.position[idx]
+
+    def _auto_plan(self):
+        if not self._planned:
+            self._planned = True
+            self.plan_and_execute()
+
+    def plan_and_execute(self):
+        self.get_logger().info("Старт планирования")
+
+
+
+        # ПЗК для определения текущей позиции
+        #start_xyz = self.kin.get_fk(self.current_q)
+
+        start_xyz = self.kin.get_fk(np.array([0.0, 0.0, 0.0, 0.0, 0.0]))
+        self.get_logger().info(f"Старт (FK): {np.round(start_xyz, 3)} | Цель: {np.round(self.goal, 3)}")
+
+        # Wavefront
+        try:
+            cart_path = run_wavefront_3d_manual(start_xyz, self.goal, self.obs_pos, self.obs_r, self.bounds, self.res)
+            self._publish_markers(cart_path)
+        except Exception as e:
+            self.get_logger().error(f"Ошибка Wavefront: {e}")
+            return
+
+        self.get_logger().info(f"Путь найден: {len(cart_path)} точек.")
+
+        # ОЗК для каждой точки пути
+        joint_path = []
+        q_seed = self.current_q.copy()
+        for pt in cart_path:
+            q_sol = self.kin.get_ik(pt, q_init=q_seed)
+
+            if self.kin.check_obstacle_collision(
+                q_sol,
+                self.obs_pos,
+                self.obs_r
+            ):
+                self.get_logger().error(
+                    f"Коллизия звена с препятствием в точке {np.round(pt, 3)}"
+                )
+                return
+
+            joint_path.append(q_sol)
+            q_seed = q_sol  # Предыдущее решение как начальное приближение
+
+        self._publish_trajectory(joint_path)
+
+        self.get_logger().info("Траектория опубликована")
+
+    def _publish_trajectory(self, joint_path):
+        self.get_logger().info(
+            f"  Сохранение траектории: {len(joint_path)} точек"
+        )
+        if len(joint_path) > 0:
+            self.get_logger().info(
+                f"    Первая точка: {[round(float(v), 3) for v in joint_path[0]]}"
+            )
+
+        self._joint_path_to_execute = joint_path
+        self._current_point_idx = 0
+
+    def _publish_markers(self, cart_path):
+        ma = MarkerArray()
+        now = self.get_clock().now().to_msg()
+
+        # Маркер препятствия (красная полупрозрачная сфера)
+        m_obs = Marker()
+        m_obs.header.frame_id = 'world'; m_obs.header.stamp = now
+        m_obs.ns = 'wf'; m_obs.id = 0; m_obs.type = Marker.SPHERE; m_obs.action = Marker.ADD
+        m_obs.pose.position = Point(x=float(self.obs_pos[0]), y=float(self.obs_pos[1]), z=float(self.obs_pos[2]))
+        m_obs.pose.orientation.w = 1.0
+        d = self.obs_r * 2.0
+        m_obs.scale.x = m_obs.scale.y = m_obs.scale.z = d
+        m_obs.color.r, m_obs.color.g, m_obs.color.b, m_obs.color.a = 1.0, 0.2, 0.2, 0.4
+        ma.markers.append(m_obs)
+
+        # Маркер пути (зелёная линия)
+        m_path = Marker()
+        m_path.header.frame_id = 'world'; m_path.header.stamp = now
+        m_path.ns = 'wf'; m_path.id = 1; m_path.type = Marker.LINE_STRIP; m_path.action = Marker.ADD
+        m_path.scale.x = 0.008
+        m_path.color.g, m_path.color.a = 1.0, 1.0
+        for pt in cart_path:
+            m_path.points.append(Point(x=float(pt[0]), y=float(pt[1]), z=float(pt[2])))
+        ma.markers.append(m_path)
+
+        self.marker_pub.publish(ma)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = YouBotWavefrontNode()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        p.disconnect()
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
